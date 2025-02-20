@@ -6,7 +6,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 import okhttp3.MultipartBody
-import retrofit2.Response
+import com.fivedevs.caloriethingy.api.models.MealResponse
+import com.fivedevs.caloriethingy.api.models.DailySummaryResponse
+import com.fivedevs.caloriethingy.api.ApiClient
 
 class MealViewModel : ViewModel() {
 

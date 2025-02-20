@@ -1,4 +1,4 @@
-package com.fivedevs.caloriethingy
+package com.fivedevs.caloriethingy.api
 
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit

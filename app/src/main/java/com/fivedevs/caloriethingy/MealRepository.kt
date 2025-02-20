@@ -2,6 +2,9 @@ package com.fivedevs.caloriethingy
 
 import okhttp3.MultipartBody
 import retrofit2.Response
+import com.fivedevs.caloriethingy.api.ApiService
+import com.fivedevs.caloriethingy.api.models.DailySummaryResponse
+import com.fivedevs.caloriethingy.api.models.MealResponse
 
 class MealRepository(private val apiService: ApiService) {
 

@@ -1,5 +1,10 @@
 package com.fivedevs.caloriethingy.api
 
+import com.fivedevs.caloriethingy.api.models.AuthResponse
+import com.fivedevs.caloriethingy.api.models.DailySummaryResponse
+import com.fivedevs.caloriethingy.api.models.LoginRequest
+import com.fivedevs.caloriethingy.api.models.MealResponse
+import com.fivedevs.caloriethingy.api.models.User
 import okhttp3.MultipartBody
 import retrofit2.Response
 import retrofit2.http.Body
