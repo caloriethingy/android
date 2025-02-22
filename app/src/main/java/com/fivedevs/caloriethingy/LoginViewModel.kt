@@ -1,7 +1,6 @@
 package com.fivedevs.caloriethingy
 
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fivedevs.caloriethingy.api.ApiService
@@ -16,10 +15,12 @@ class LoginViewModel(private val apiService: ApiService) : ViewModel() {
     var password = mutableStateOf("")
     var isLoading = mutableStateOf(false)
     var errorMessage = mutableStateOf("")
+    val loggedIn = mutableStateOf(false)
 
     // Function to handle login
     fun login() {
         isLoading.value = true
+        loggedIn.value = false
         errorMessage.value = ""
 
         val loginRequest = LoginRequest(email.value, password.value)
@@ -29,6 +30,7 @@ class LoginViewModel(private val apiService: ApiService) : ViewModel() {
                 if (response.isSuccessful) {
                     // Handle successful login
                     val authResponse = response.body()
+                    loggedIn.value = true
                     authResponse?.let {
                         // Save token or handle as needed
                     }

@@ -48,6 +48,7 @@ class MainActivity : ComponentActivity() {
         mealViewModel.getDailySummary("your_token")
     }
 
+    @Preview
     @Composable
     fun GuestScreen() {
         var isLoginScreen by remember { mutableStateOf(false) }
