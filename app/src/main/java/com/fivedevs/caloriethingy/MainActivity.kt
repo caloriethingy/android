@@ -63,6 +63,10 @@ class MainActivity : ComponentActivity(), EasyPermissions.PermissionCallbacks {
                 val response = apiService.getDailySummary("Bearer $token")
                 if (!response.isSuccessful && response.code() == 401) {
                     Log.w("MainActivity", "Token invalid (401), redirecting to LoginActivity")
+                    getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                        .edit()
+                        .remove(TOKEN_KEY)
+                        .commit()
                     startActivity(Intent(this@MainActivity, LoginActivity::class.java))
                     finish()
                     return@launch
@@ -70,6 +74,11 @@ class MainActivity : ComponentActivity(), EasyPermissions.PermissionCallbacks {
                 Log.d("MainActivity", "Token valid, proceeding")
             } catch (e: Exception) {
                 Log.e("MainActivity", "Token check failed: ${e.message}", e)
+                // Set TOKEN_KEY to null so we don't loop
+                getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                    .edit()
+                    .remove(TOKEN_KEY)
+                    .commit()
                 startActivity(Intent(this@MainActivity, LoginActivity::class.java))
                 finish()
                 return@launch
