@@ -1,5 +1,6 @@
 package com.fivedevs.caloriethingy
 
+import SummaryActivity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -34,25 +35,53 @@ class MainActivity : ComponentActivity(), EasyPermissions.PermissionCallbacks {
     private val CAMERA_PERMISSION_CODE = 100
 
     private val takePictureLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        Log.d("MainActivity", "takePictureLauncher result: code=${result.resultCode}")
         if (result.resultCode == RESULT_OK) {
+            Log.d("MainActivity", "Calling uploadPicture()")
             uploadPicture()
+        } else {
+            Log.w("MainActivity", "Picture capture failed or cancelled: ${result.resultCode}")
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-        if (!prefs.contains(TOKEN_KEY)) {
+        val token = prefs.getString(TOKEN_KEY, null)
+        if (token == null) {
+            Log.d("MainActivity", "No token found, redirecting to LoginActivity")
             startActivity(Intent(this, LoginActivity::class.java))
             finish()
             return
         }
 
-        setContent {
-            MainScreen(
-                onUploadClick = { checkCameraPermission() },
-                onSummaryClick = { startActivity(Intent(this, SummaryActivity::class.java)) }
-            )
+        // Check token validity on startup
+        lifecycleScope.launch {
+            Log.d("MainActivity", "Checking token validity")
+            val apiService = ApiClient.getClient().create(ApiService::class.java)
+            try {
+                val response = apiService.getDailySummary("Bearer $token")
+                if (!response.isSuccessful && response.code() == 401) {
+                    Log.w("MainActivity", "Token invalid (401), redirecting to LoginActivity")
+                    startActivity(Intent(this@MainActivity, LoginActivity::class.java))
+                    finish()
+                    return@launch
+                }
+                Log.d("MainActivity", "Token valid, proceeding")
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Token check failed: ${e.message}", e)
+                startActivity(Intent(this@MainActivity, LoginActivity::class.java))
+                finish()
+                return@launch
+            }
+
+            // Set Compose content only if token is valid
+            setContent {
+                MainScreen(
+                    onUploadClick = { checkCameraPermission() },
+                    onSummaryClick = { startActivity(Intent(this@MainActivity, SummaryActivity::class.java)) } // Fix applied here
+                )
+            }
         }
     }
 

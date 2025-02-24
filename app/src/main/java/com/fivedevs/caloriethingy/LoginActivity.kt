@@ -23,11 +23,6 @@ class LoginActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-        if (prefs.contains(TOKEN_KEY)) {
-            startActivity(Intent(this, MainActivity::class.java))
-            finish()
-            return
-        }
 
         setContent {
             LoginScreen(
