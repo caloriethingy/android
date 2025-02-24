@@ -1,22 +1,22 @@
-package com.fivedevs.caloriethingy.api
+package com.fivedevs.caloriethingy
 
-import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import com.jakewharton.retrofit2.adapter.kotlin.coroutines.CoroutineCallAdapterFactory
 
 object ApiClient {
-    private const val BASE_URL = "http://localhost:20081/"
-
-    // Create OkHttpClient to handle logging (optional but useful for debugging)
-    private val client = OkHttpClient.Builder().build()
+    private const val BASE_URL = "https://shipwise.ngrok.io/"
+    private var retrofit: Retrofit? = null
 
     // Create Retrofit instance
-    val apiService: ApiService by lazy {
-        Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .client(client)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(ApiService::class.java)
+    fun getClient(): Retrofit {
+        if (retrofit == null) {
+            retrofit = Retrofit.Builder()
+                .baseUrl(BASE_URL)
+                .addConverterFactory(GsonConverterFactory.create())
+                .addCallAdapterFactory(CoroutineCallAdapterFactory())
+                .build()
+        }
+        return retrofit!!
     }
 }

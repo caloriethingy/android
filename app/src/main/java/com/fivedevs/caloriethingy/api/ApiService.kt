@@ -1,35 +1,30 @@
 package com.fivedevs.caloriethingy.api
 
 import com.fivedevs.caloriethingy.api.models.AuthResponse
-import com.fivedevs.caloriethingy.api.models.DailySummaryResponse
-import com.fivedevs.caloriethingy.api.models.LoginRequest
-import com.fivedevs.caloriethingy.api.models.MealResponse
+import com.fivedevs.caloriethingy.api.models.CreateMealResponse
+import com.fivedevs.caloriethingy.api.models.SummaryResponse
 import com.fivedevs.caloriethingy.api.models.User
+import com.fivedevs.caloriethingy.api.models.UserRegister
 import okhttp3.MultipartBody
 import retrofit2.Response
-import retrofit2.http.Body
-import retrofit2.http.Header
-import retrofit2.http.Multipart
-import retrofit2.http.POST
-import retrofit2.http.GET
-import retrofit2.http.Part
+import retrofit2.http.*
 
 interface ApiService {
-
-    // Register user
     @POST("auth/register")
-    suspend fun register(@Body user: User): Response<AuthResponse>
+    suspend fun register(@Body body: UserRegister): Response<AuthResponse>
 
-    // Login user
     @POST("auth/login")
-    suspend fun login(@Body loginRequest: LoginRequest): Response<AuthResponse>
+    suspend fun login(@Body body: User): Response<AuthResponse>
 
-    // Upload meal image
     @Multipart
     @POST("meal/create-meal")
-    suspend fun uploadMeal(@Part file: MultipartBody.Part): Response<MealResponse>
+    suspend fun uploadMeal(
+        @Header("Authorization") authHeader: String,
+        @Header("Accept") accept: String = "application/json",
+        @Part picture: MultipartBody.Part
+    ): Response<CreateMealResponse>
 
-    // Get daily summary
-    @GET("meal/get-daily-summary")
-    suspend fun getDailySummary(@Header("Authorization") token: String): Response<DailySummaryResponse>
+    @GET("meals/get-daily-summary")
+    suspend fun getDailySummary(@Header("Authorization") authHeader: String): Response<SummaryResponse>
+
 }

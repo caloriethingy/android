@@ -1,112 +1,164 @@
 package com.fivedevs.caloriethingy
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
+import android.provider.MediaStore
+import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.viewModels
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.Button
-import androidx.compose.material.Text
+import androidx.compose.material.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.sp
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import androidx.core.content.FileProvider
+import androidx.lifecycle.lifecycleScope
+import com.fivedevs.caloriethingy.api.ApiService
+import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
+import pub.devrel.easypermissions.EasyPermissions
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.*
 
-class MainActivity : ComponentActivity() {
+class MainActivity : ComponentActivity(), EasyPermissions.PermissionCallbacks {
+    private val PREFS_NAME = "app_prefs"
+    private val TOKEN_KEY = "auth_token"
+    private var photoFile: File? = null
+    private val CAMERA_PERMISSION_CODE = 100
 
-    private val mealViewModel: MealViewModel by viewModels()
-    // Initialize the LoginViewModel
-    private val loginViewModel: LoginViewModel by viewModels {
-        LoginViewModelFactory(RetrofitInstance.apiService)
+    private val takePictureLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+            uploadPicture()
+        }
     }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        if (!prefs.contains(TOKEN_KEY)) {
+            startActivity(Intent(this, LoginActivity::class.java))
+            finish()
+            return
+        }
+
         setContent {
-            LoginScreen(onNavigateBack = { /* Handle back navigation */ }, loginViewModel)
+            MainScreen(
+                onUploadClick = { checkCameraPermission() },
+                onSummaryClick = { startActivity(Intent(this, SummaryActivity::class.java)) }
+            )
         }
-
-        // Upload meal image example (replace with actual file logic)
-        val file = File("path/to/your/image.jpg")  // Replace with your file path
-        val requestBody = file.asRequestBody("image/jpeg".toMediaTypeOrNull())
-        val part = MultipartBody.Part.createFormData("picture", file.name, requestBody)
-
-        // Call the ViewModel function to upload image
-        mealViewModel.uploadMealImage(part)
-
-        // Observe the meal response
-        mealViewModel.mealResponse.observe(this) { response ->
-            // Handle success case (update UI, etc.)
-        }
-
-        // To test daily summary (replace "your_token" with an actual JWT token)
-        mealViewModel.getDailySummary("your_token")
     }
 
-    @Preview
-    @Composable
-    fun GuestScreen() {
-        var isLoginScreen by remember { mutableStateOf(false) }
-        var isRegisterScreen by remember { mutableStateOf(false) }
-
-        // Conditional display based on the screen choice
-        if (isLoginScreen) {
-            LoginScreen(onNavigateBack = { /* Handle back navigation */ }, loginViewModel)
-        } else if (isRegisterScreen) {
-            RegisterScreen(onNavigateBack = { isRegisterScreen = false })
+    private fun checkCameraPermission() {
+        if (EasyPermissions.hasPermissions(this, android.Manifest.permission.CAMERA)) {
+            takePicture()
         } else {
-            // Default Guest Screen
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text("Calorie Thingy!", fontSize = 42.sp)
-                Spacer(modifier = Modifier.height(10.dp))
-                Text("Oh hi \uD83D\uDC4B! I don't know what I'm doing - this probably works.")
+            EasyPermissions.requestPermissions(
+                this, "Camera permission is required",
+                CAMERA_PERMISSION_CODE, android.Manifest.permission.CAMERA
+            )
+        }
+    }
 
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Button(onClick = { isRegisterScreen = true }) {
-                    Text("Register")
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Button(onClick = { isLoginScreen = true }) {
-                    Text("Login")
-                }
+    private fun takePicture() {
+        val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+        if (takePictureIntent.resolveActivity(packageManager) != null) {
+            try {
+                photoFile = createImageFile()
+                val photoURI = FileProvider.getUriForFile(
+                    this,
+                    "com.fivedevs.caloriethingy.fileprovider",
+                    photoFile!!
+                )
+                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI)
+                takePictureLauncher.launch(takePictureIntent)
+            } catch (ex: Exception) {
+                Toast.makeText(this, "Error creating file", Toast.LENGTH_SHORT).show()
             }
+        }
+    }
+
+    private fun createImageFile(): File {
+        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+        val imageFileName = "JPEG_${timeStamp}_"
+        val storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+        return File.createTempFile(imageFileName, ".jpg", storageDir)
+    }
+
+    private fun uploadPicture() {
+        val photoFile = photoFile ?: return
+        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        val token = prefs.getString(TOKEN_KEY, null)
+        if (token == null) {
+            startActivity(Intent(this, LoginActivity::class.java))
+            finish()
+            return
+        }
+
+        val requestFile = photoFile.asRequestBody("image/jpeg".toMediaType())
+        val body = MultipartBody.Part.createFormData("MealForm[picture]", photoFile.name, requestFile)
+        val authHeader = "Bearer $token"
+        val apiService = ApiClient.getClient().create(ApiService::class.java)
+
+        lifecycleScope.launch {
+            try {
+                val response = apiService.uploadMeal(authHeader, picture = body)
+                if (response.isSuccessful) {
+                    Toast.makeText(this@MainActivity, "Upload successful", Toast.LENGTH_SHORT).show()
+                } else {
+                    val errorBody = response.errorBody()?.string() ?: "Unknown error"
+                    Log.e("UploadError", "Failed with code ${response.code()}: $errorBody")
+                    Toast.makeText(this@MainActivity, "Upload failed", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        EasyPermissions.onRequestPermissionsResult(requestCode, permissions, grantResults, this)
+    }
+
+    override fun onPermissionsGranted(requestCode: Int, perms: List<String>) {
+        takePicture()
+    }
+
+    override fun onPermissionsDenied(requestCode: Int, perms: List<String>) {
+        if (EasyPermissions.somePermissionPermanentlyDenied(this, perms)) {
+            Toast.makeText(this, "Camera permission denied permanently", Toast.LENGTH_SHORT).show()
         }
     }
 }
 
-
-@Preview
 @Composable
-fun RegisterScreen(onNavigateBack: () -> Unit) {
+fun MainScreen(onUploadClick: () -> Unit, onSummaryClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text("Register Screen")
-
-        // You can add your register form here (email, password, etc.)
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Button(onClick = { onNavigateBack() }) {
-            Text("Back to Guest Screen")
+        Button(
+            onClick = onUploadClick,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Upload Meal Picture")
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = onSummaryClick,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("View Daily Summary")
         }
     }
 }
