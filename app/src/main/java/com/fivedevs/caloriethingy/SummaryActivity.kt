@@ -1,3 +1,5 @@
+package com.fivedevs.caloriethingy
+
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
@@ -9,8 +11,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.fivedevs.caloriethingy.ApiClient
-import com.fivedevs.caloriethingy.LoginActivity
 import com.fivedevs.caloriethingy.api.ApiService
 import kotlinx.coroutines.launch
 
@@ -47,7 +47,7 @@ fun SummaryScreen(token: String) {
                 val response = apiService.getDailySummary("Bearer $token")
                 if (response.isSuccessful) {
                     val summary = response.body()
-                    summaryText = "Total Calories: ${summary?.total_calories ?: 0}"
+                    summaryText = "Total Calories: ${summary?.calories ?: 0}"
                 } else {
                     Toast.makeText(context, "Failed to get summary", Toast.LENGTH_SHORT).show() // Use context
                 }
