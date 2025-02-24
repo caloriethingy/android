@@ -5,7 +5,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import com.jakewharton.retrofit2.adapter.kotlin.coroutines.CoroutineCallAdapterFactory
 
 object ApiClient {
-    private const val BASE_URL = "https://shipwise.ngrok.io/"
+    private const val BASE_URL = "https://caloriethingy.com/"
     private var retrofit: Retrofit? = null
 
     // Create Retrofit instance
